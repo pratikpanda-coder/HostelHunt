@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hostel Hunt - Booking</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="fade-in">
+
+  <header class="site-header">
+    <div class="container nav-row">
+      <h1 class="logo">Hostel Hunt</h1>
+      <nav class="main-nav">
+        <a href="index.html" target="_blank">Home</a>
+        <a href="login.html" target="_blank">Login</a>
+        <a href="signup.html" target="_blank">Signup</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container form-container fade-in">
+    <h2 class="form-title">Book a Room</h2>
+
+    <form id="bookingForm" class="form-box" onsubmit="event.preventDefault(); bookRoom();">
+      <input id="bookName" type="text" class="input" placeholder="Your Name" required>
+      <input id="bookEmail" type="email" class="input" placeholder="Your Email" required>
+      <input id="bookHostel" type="text" class="input" placeholder="Hostel Name" required>
+      <input id="bookRoomType" type="text" class="input" placeholder="Room Type (Single/Double)" required>
+      <input id="bookDateFrom" type="date" class="input" required>
+      <input id="bookDateTo" type="date" class="input" required>
+
+      <button class="btn" type="submit">Confirm Booking</button>
+    </form>
+
+    <div id="bookingMessage" class="form-message"></div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">Hostel Hunt © <span id="year"></span></div>
+  </footer>
+
+  <script src="script.js"></script>
+  <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+</body>
+</html>

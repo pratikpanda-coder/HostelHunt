@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hostel Hunt - Signup</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="fade-in">
+
+  <header class="site-header">
+    <div class="container nav-row">
+      <h1 class="logo">Hostel Hunt</h1>
+      <nav class="main-nav">
+        <a href="index.html" target="_blank">Home</a>
+        <a href="login.html" target="_blank">Login</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container form-container fade-in">
+    <h2 class="form-title">Create an Account</h2>
+
+    <form id="signupForm" class="form-box" onsubmit="event.preventDefault(); signupUser();">
+      <input id="signupName" type="text" class="input" placeholder="Full Name" required />
+      <input id="signupEmail" type="email" class="input" placeholder="Email Address" required />
+      <input id="signupPassword" type="password" class="input" placeholder="Password" required />
+      <input id="signupRole" type="text" class="input" placeholder="Role (user/owner/admin)" required />
+
+      <button class="btn" type="submit">Signup</button>
+
+      <p class="muted">Already have an account? <a href="login.html" target="_blank">Login here</a></p>
+    </form>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">Hostel Hunt © <span id="year"></span></div>
+  </footer>
+
+  <script src="script.js"></script>
+  <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+</body>
+</html>

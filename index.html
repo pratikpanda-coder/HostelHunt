@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hostel Hunt - Home</title>
+  <!-- Link to shared CSS -->
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    body { font-family: 'Poppins', sans-serif; background: linear-gradient(135deg, #4A90E2, #9013FE); color: #ffffff; margin:0; padding:0; }
+    .container { width:90%; max-width:1200px; margin:auto; }
+    .logo { font-size:32px; font-weight:700; }
+    .site-header { background: rgba(0,0,0,0.25); backdrop-filter: blur(8px); padding:15px 0; }
+    .nav-row { display:flex; justify-content:space-between; align-items:center; }
+    .main-nav a { color:#fff; font-weight:500; margin-right:20px; text-decoration:none; }
+    .hero { text-align:center; margin:60px 0; }
+    h2 { font-size:38px; font-weight:700; }
+    .muted { font-size:18px; opacity:0.9; }
+    .search-form { display:flex; gap:15px; margin-top:20px; justify-content:center; }
+    .input { padding:12px 15px; border:none; border-radius:8px; width:230px; font-size:16px; }
+    .btn { background:#FFCA28; color:#000; padding:12px 25px; border-radius:8px; font-size:16px; font-weight:600; border:none; cursor:pointer; }
+    .quick-actions { margin:40px auto; text-align:center; }
+    .card-link { display:inline-block; background:#ffffff22; padding:15px 25px; margin:10px; border-radius:10px; color:#fff; text-decoration:none; font-size:18px; }
+    .results { margin-top:40px; }
+    .site-footer { text-align:center; padding:20px 0; background:rgba(0,0,0,0.25); margin-top:60px; font-size:14px; }
+
+    /* Simple fade-in animation */
+    .fade-in { opacity: 0; transform: translateY(20px); animation: fadeInUp 0.8s ease forwards; }
+    @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
+
+    /* Smooth hover animation for cards/buttons */
+    .btn, .card-link { transition: transform 0.3s ease, box-shadow 0.3s ease; }
+    .btn:hover, .card-link:hover { transform: translateY(-5px); box-shadow: 0 8px 20px rgba(0,0,0,0.15); }
+
+    /* Navbar subtle slide animation */
+    .main-nav a { position: relative; }
+    .main-nav a::after { content:""; position:absolute; bottom:-3px; left:0; width:0%; height:2px; background:#fff; transition:0.3s; }
+    .main-nav a:hover::after { width:100%; }
+  </style>
+</head>
+<body>
+  <!-- Header / Navbar -->
+  <header class="site-header">
+    <div class="container nav-row">
+      <h1 class="logo">Hostel Hunt</h1>
+      <nav class="main-nav">
+        <a href="index.html" >Home</a>
+        <a href="login.html" >Login</a>
+        <a href="signup.html" >Signup</a>
+        <a href="booking.html" >Booking</a>
+        <a href="owner.html" >Owner</a>
+        <a href="admin.html" ></a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Hero / Search -->
+  <main class="container">
+    <section class="hero">
+      <h2>Find the best hostels near you</h2>
+      <p class="muted">Search by city or max price — quick, simple and free.</p>
+
+      <form id="searchForm" class="search-form" onsubmit="event.preventDefault(); searchHostels();">
+        <input id="locationInput" class="input" type="text" placeholder="Enter city (e.g. Bhubaneswar)" />
+        <input id="maxPriceInput" class="input" type="number" placeholder="Max price (monthly, optional)" />
+        <button class="btn" type="submit">Search</button>
+      </form>
+    </section>
+
+    <!-- Results -->
+    <section id="results" class="results" aria-live="polite">
+      <!-- JS will render hostel cards here -->
+    </section>
+
+    <!-- Quick actions -->
+    <section class="quick-actions">
+      <a class="card-link" href="owner-add-hostel.html" target="_blank">Add a hostel (Owner)</a>
+      <a class="card-link" href="admin-management.html" target="_blank">Open admin panel</a>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="container">Hostel Hunt © <span id="year"></span> — Built with ❤️</div>
+  </footer>
+
+  <!-- Shared script -->
+  <script src="script.js"></script>
+  <script>
+    // footer year
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>
