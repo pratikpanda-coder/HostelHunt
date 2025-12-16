@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Add Property – Hostel Hunt</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="style.css" />
+
+  <style>
+    body { background:#f3f4f6; margin:0; font-family:Arial, sans-serif; }
+    header { background:#1e3a8a; color:#fff; padding:14px 20px; display:flex; justify-content:space-between; align-items:center; }
+    header a { color:white; margin-left:10px; text-decoration:none; }
+    .form-container { max-width:800px; margin:40px auto; background:white; padding:25px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.08); }
+    .form-group { margin-bottom:14px; }
+    label { font-weight:600; display:block; margin-bottom:6px; }
+    input, select, textarea { width:100%; padding:10px; border-radius:6px; border:1px solid #d1d5db; font-size:15px; }
+    textarea { height:80px; resize:none; }
+    .image-preview { width:100%; max-height:250px; object-fit:cover; border-radius:8px; margin-bottom:10px; display:none; background:#eee; }
+    .btn-upload { background:#2563eb; color:white; padding:8px 12px; border-radius:6px; cursor:pointer; display:inline-block; }
+    .progress-container { width:100%; height:8px; background:#e5e7eb; border-radius:8px; overflow:hidden; display:none; margin-top:10px; }
+    .progress-bar { height:100%; width:0%; background:#2563eb; }
+    button[type="submit"] { background:#2563eb; color:white; padding:10px 16px; border-radius:8px; border:none; cursor:pointer; font-size:16px; margin-top:10px; }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <div class="logo">Hostel Hunt</div>
+  <nav id="mainNav" style="display:flex;align-items:center;gap:12px;">
+    <a href="index.html">Home</a>
+    <a href="owner-dashboard.html">Dashboard</a>
+    <a href="login.html" id="loginNav">Login</a>
+    <a href="register.html" id="signupNav" class="btn">Sign up</a>
+
+    <a href="#" id="meProfileLink" style="display:none;">
+      <img id="navAvatar" src="https://via.placeholder.com/36"
+           alt="Profile" style="width:36px;height:36px;border-radius:50%;vertical-align:middle;margin-right:8px;object-fit:cover;border:2px solid #fff;">
+      <span id="navName" style="vertical-align:middle;font-weight:600;"></span>
+    </a>
+
+    <a href="#" id="logoutNav" style="display:none;color:#fff;background:#ef4444;padding:6px 10px;border-radius:6px;text-decoration:none;">Logout</a>
+  </nav>
+</header>
+
+<div class="form-container">
+  <h2>Add New Property</h2>
+
+  <form id="propertyForm">
+    
+    <div class="form-group">
+      <label>Property Title</label>
+      <input type="text" id="title" required />
+    </div>
+
+    <div class="form-group">
+      <label>Property Type</label>
+      <select id="type">
+        <option value="hostel">Hostel</option>
+        <option value="pg">PG</option>
+        <option value="room">Room</option>
+        <option value="flat">Flat</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>For Gender</label>
+      <select id="gender">
+        <option value="male">Male</option>
+        <option value="female">Female</option>
+        <option value="both">Both</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>City</label>
+      <input type="text" id="city" required />
+    </div>
+
+    <div class="form-group">
+      <label>Nearby College (optional)</label>
+      <input type="text" id="nearbyCollege" placeholder="e.g. XYZ University" />
+    </div>
+
+    <div class="form-group">
+      <label>Full Address</label>
+      <textarea id="address" required></textarea>
+    </div>
+
+    <div class="form-group">
+      <label>Monthly Rent (₹)</label>
+      <input type="number" id="rent" required />
+    </div>
+
+    <div class="form-group">
+      <label>Available Beds</label>
+      <input type="number" id="availableBeds" placeholder="e.g. 4" />
+    </div>
+
+    <div class="form-group">
+      <label>Facilities (comma separated)</label>
+      <input type="text" id="facilities" placeholder="WiFi, Food, Laundry" />
+    </div>
+
+    <!-- Image Upload -->
+    <img id="imagePreview" class="image-preview" />
+
+    <label class="btn-upload">
+      Choose Image
+      <input type="file" id="propertyImage" accept="image/*" hidden />
+    </label>
+
+    <div class="progress-container" id="progressContainer">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+
+    <button type="submit">Save Property</button>
+
+    <p id="message" style="margin-top:10px;"></p>
+
+  </form>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+  import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+  import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-storage.js";
+  import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAOKTqpJmN-43fDQrZVmfGCVlK_8JBTrvY",
+    authDomain: "hostelhunt-1df83.firebaseapp.com",
+    projectId: "hostelhunt-1df83",
+    storageBucket: "hostelhunt-1df83.firebasestorage.app",
+    messagingSenderId: "272376261500",
+    appId: "1:272376261500:web:719ada3e6b22090c5b12f9"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+  const storage = getStorage(app);
+
+  // header elements
+  const loginNav = document.getElementById("loginNav");
+  const signupNav = document.getElementById("signupNav");
+  const logoutNav = document.getElementById("logoutNav");
+  const meProfileLink = document.getElementById("meProfileLink");
+  const navAvatar = document.getElementById("navAvatar");
+  const navName = document.getElementById("navName");
+
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+      loginNav.style.display = "";
+      signupNav.style.display = "";
+      logoutNav.style.display = "none";
+      meProfileLink.style.display = "none";
+      location.href = "login.html";
+    } else {
+      loginNav.style.display = "none";
+      signupNav.style.display = "none";
+      logoutNav.style.display = "";
+      meProfileLink.style.display = "";
+
+      try {
+        const snap = await getDoc(doc(db, "users", user.uid));
+        const data = snap.exists() ? snap.data() : {};
+        navName.textContent = data.name || user.displayName || user.email.split("@")[0] || "User";
+        navAvatar.src = data.photoURL || user.photoURL || "https://via.placeholder.com/150";
+      } catch (e) {
+        navName.textContent = user.email.split("@")[0] || "User";
+        navAvatar.src = user.photoURL || "https://via.placeholder.com/150";
+      }
+    }
+  });
+
+  logoutNav.addEventListener("click", async (e) => {
+    e.preventDefault();
+    await signOut(auth);
+    window.location.href = "login.html";
+  });
+
+  const imageInput = document.getElementById("propertyImage");
+  const imagePreview = document.getElementById("imagePreview");
+  const progressContainer = document.getElementById("progressContainer");
+  const progressBar = document.getElementById("progressBar");
+
+  imageInput.onchange = () => {
+    const file = imageInput.files[0];
+    if (file) {
+      imagePreview.src = URL.createObjectURL(file);
+      imagePreview.style.display = "block";
+    }
+  };
+
+  async function uploadImage(file) {
+    return new Promise((resolve, reject) => {
+      const path = `properties/${auth.currentUser.uid}_${Date.now()}_${file.name}`;
+      const ref = storageRef(storage, path);
+
+      const uploadTask = uploadBytesResumable(ref, file);
+
+      progressContainer.style.display = "block";
+
+      uploadTask.on(
+        "state_changed",
+        (snap) => {
+          const pct = snap.bytesTransferred / snap.totalBytes * 100;
+          progressBar.style.width = `${pct}%`;
+        },
+        reject,
+        async () => {
+          const url = await getDownloadURL(uploadTask.snapshot.ref);
+          resolve({ url, path });
+        }
+      );
+    });
+  }
+
+  document.getElementById("propertyForm").onsubmit = async (e) => {
+    e.preventDefault();
+
+    const msg = document.getElementById("message");
+    msg.textContent = "Saving...";
+
+    const file = imageInput.files[0];
+    let imageURL = "";
+    let imagePath = "";
+
+    if (file) {
+      const uploaded = await uploadImage(file);
+      imageURL = uploaded.url;
+      imagePath = uploaded.path;
+    }
+
+    const data = {
+      ownerId: auth.currentUser.uid,
+      title: document.getElementById("title").value,
+      type: document.getElementById("type").value,
+      forGender: document.getElementById("gender").value,
+      city: document.getElementById("city").value,
+      nearbyCollege: document.getElementById("nearbyCollege").value || "",
+      address: document.getElementById("address").value,
+      rent: Number(document.getElementById("rent").value),
+      availableBeds: Number(document.getElementById("availableBeds").value) || null,
+      facilities: document.getElementById("facilities").value,
+      imageURL,
+      imagePath,
+      createdAt: serverTimestamp(),
+      status: "Active"
+    };
+
+    await addDoc(collection(db, "properties"), data);
+
+    msg.style.color = "green";
+    msg.textContent = "Property added successfully!";
+    e.target.reset();
+    imagePreview.style.display = "none";
+  };
+</script>
+
+</body>
+</html>

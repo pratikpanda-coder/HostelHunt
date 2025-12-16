@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Register – Hostel Hunt</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Header -->
+<header>
+  <div class="logo">Hostel Hunt</div>
+
+  <nav id="mainNav" style="display:flex;align-items:center;gap:12px;">
+    <a href="index.html">Home</a>
+    <a href="login.html" id="loginNav">Login</a>
+    <a href="register.html" id="signupNav" class="btn">Sign up</a>
+
+    <a href="#" id="meProfileLink" style="display:none;">
+      <img id="navAvatar" src="https://via.placeholder.com/36"
+           alt="Profile" style="width:36px;height:36px;border-radius:50%;vertical-align:middle;margin-right:8px;object-fit:cover;border:2px solid #fff;">
+      <span id="navName" style="vertical-align:middle;font-weight:600;"></span>
+    </a>
+
+    <a href="#" id="logoutNav" style="display:none;color:#fff;background:#ef4444;padding:6px 10px;border-radius:6px;text-decoration:none;">Logout</a>
+  </nav>
+</header>
+
+<div class="form-page">
+    <h2>Create an Account</h2>
+    <p class="small">Free sign-up for both students and property owners.</p>
+
+    <form id="registerForm">
+        <div class="form-group">
+            <label>Full Name</label>
+            <input type="text" name="name" placeholder="Your name" required>
+        </div>
+
+        <div class="form-group">
+            <label>Email</label>
+            <input type="email" name="email" placeholder="you@example.com" required>
+        </div>
+
+        <div class="form-group">
+            <label>Phone</label>
+            <input type="text" name="phone" placeholder="10 digit mobile">
+        </div>
+
+        <div class="form-group">
+            <label>Password</label>
+            <input type="password" name="password" required>
+        </div>
+
+        <div class="form-group">
+            <label>Confirm Password</label>
+            <input type="password" name="confirm_password" required>
+        </div>
+
+        <div class="form-group">
+            <label>Register as</label>
+            <select name="role">
+                <option value="student">Student / Bachelor</option>
+                <option value="owner">Owner</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Gender</label>
+            <select name="gender">
+                <option value="">Select</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>College / University (for students)</label>
+            <input type="text" name="college_name" placeholder="e.g. XYZ University">
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn-primary">Create account</button>
+            <a href="login.html" class="text-link">Already registered? Login</a>
+        </div>
+
+        <p id="registerMessage" class="small" style="margin-top:10px;"></p>
+    </form>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+  import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+  import { getFirestore, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+  import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAOKTqpJmN-43fDQrZVmfGCVlK_8JBTrvY",
+    authDomain: "hostelhunt-1df83.firebaseapp.com",
+    projectId: "hostelhunt-1df83",
+    storageBucket: "hostelhunt-1df83.firebasestorage.app",
+    messagingSenderId: "272376261500",
+    appId: "1:272376261500:web:719ada3e6b22090c5b12f9",
+    measurementId: "G-0G66K64YFS"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  // header elements
+  const loginNav = document.getElementById("loginNav");
+  const signupNav = document.getElementById("signupNav");
+  const logoutNav = document.getElementById("logoutNav");
+  const meProfileLink = document.getElementById("meProfileLink");
+  const navAvatar = document.getElementById("navAvatar");
+  const navName = document.getElementById("navName");
+
+  onAuthStateChanged(auth, (user) => {
+    if (!user) {
+      loginNav.style.display = "";
+      signupNav.style.display = "";
+      logoutNav.style.display = "none";
+      meProfileLink.style.display = "none";
+    } else {
+      loginNav.style.display = "none";
+      signupNav.style.display = "none";
+      logoutNav.style.display = "";
+      meProfileLink.style.display = "";
+      navName.textContent = user.email.split("@")[0] || "User";
+      navAvatar.src = user.photoURL || "https://via.placeholder.com/150";
+    }
+  });
+
+  logoutNav.addEventListener("click", async (e) => {
+    e.preventDefault();
+    await signOut(auth);
+    window.location.href = "login.html";
+  });
+
+  // DOM elements
+  const form = document.getElementById("registerForm");
+  const msg = document.getElementById("registerMessage");
+
+  function showMessage(text, type = "success") {
+    msg.innerText = text;
+    msg.style.display = "block";
+    if (type === "success") msg.style.color = "green";
+    else if (type === "error") msg.style.color = "red";
+    else msg.style.color = "blue";
+  }
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    msg.innerText = "";
+
+    const formData = new FormData(form);
+    const name = formData.get("name");
+    const email = formData.get("email");
+    const phone = formData.get("phone");
+    const password = formData.get("password");
+    const confirmPassword = formData.get("confirm_password");
+    const role = formData.get("role");
+    const gender = formData.get("gender");
+    const collegeName = formData.get("college_name");
+
+    if (password !== confirmPassword) {
+      showMessage("Password and confirm password do not match.", "error");
+      return;
+    }
+
+    try {
+      const userCred = await createUserWithEmailAndPassword(auth, email, password);
+      const uid = userCred.user.uid;
+
+      // Save extra user data in Firestore with default photoURL
+      await setDoc(doc(db, "users", uid), {
+        name,
+        email,
+        phone,
+        role,
+        gender,
+        collegeName,
+        photoURL: "https://via.placeholder.com/150",
+        createdAt: serverTimestamp()
+      });
+
+      showMessage("Account created successfully! Redirecting to login...", "success");
+
+      setTimeout(() => {
+        window.location.href = "login.html";
+      }, 1200);
+    } catch (err) {
+      console.error(err);
+
+      if (err.code === "auth/email-already-in-use") {
+        showMessage("This email is already registered. Redirecting to login page...", "info");
+        setTimeout(() => {
+          window.location.href = "login.html";
+        }, 1200);
+      } else {
+        showMessage("Firebase error: " + err.message, "error");
+      }
+    }
+  });
+</script>
+
+</body>
+</html>

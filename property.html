@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Property Details – Hostel Hunt</title>
+    <link rel="stylesheet" href="style.css">
+
+    <style>
+        .details-container { max-width: 900px; margin: 30px auto; background: #fff; padding: 22px; border-radius: 12px; box-shadow: 0 1px 8px rgba(0,0,0,0.08); }
+        .details-title { font-size: 26px; font-weight: bold; margin-bottom: 6px; }
+        .details-section { margin-top: 22px; padding-top: 10px; border-top: 1px solid #eee; }
+        .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .tag { background: #eef2ff; padding: 5px 10px; border-radius: 20px; font-size: 12px; margin-right: 6px; display: inline-block; }
+        .review-card { background: #f9fafb; padding: 12px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #e5e7eb; }
+        .owner-reply-box { background:#eef2ff; padding:10px; margin-top:8px; border-radius:6px; }
+        textarea { width:100%; padding:8px; border-radius:6px; border:1px solid #ddd; }
+        .action-row { display:flex; gap:10px; margin-top:12px; flex-wrap:wrap; }
+        .btn-primary { background:#2563eb;color:white;padding:8px 12px;border-radius:8px;text-decoration:none;display:inline-block; }
+        .btn-secondary { background:#e6f4ff;color:#2563eb;padding:8px 12px;border-radius:8px;text-decoration:none;display:inline-block; border:1px solid #d7f0ff; }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <div class="logo">Hostel Hunt</div>
+    <nav>
+        <a href="index.html">Home</a>
+        <a href="login.html">Login</a>
+        <a href="register.html" class="btn">Sign up</a>
+    </nav>
+</header>
+
+<div class="details-container">
+
+    <h2 class="details-title" id="title">Loading...</h2>
+    <p id="city"></p>
+
+    <img id="propertyImage"
+         src="https://images.pexels.com/photos/271624/pexels-photo-271624.jpeg"
+         style="width:100%; border-radius:10px; margin-top:12px;">
+
+    <div class="details-section">
+        <h3>Basic Info</h3>
+        <div class="details-grid">
+            <p><strong>Type:</strong> <span id="type"></span></p>
+            <p><strong>For:</strong> <span id="forGender"></span></p>
+            <p><strong>Rent:</strong> ₹<span id="rent"></span></p>
+            <p><strong>Beds Available:</strong> <span id="beds"></span></p>
+        </div>
+    </div>
+
+    <div class="details-section">
+        <h3>Description</h3>
+        <p id="description"></p>
+    </div>
+
+    <div class="details-section">
+        <h3>Facilities</h3>
+        <div id="facilities"></div>
+    </div>
+
+    <div class="details-section">
+        <h3>Location</h3>
+        <p><strong>Address:</strong> <span id="address"></span></p>
+        <p><strong>Nearby:</strong> <span id="nearby"></span></p>
+    </div>
+
+    <div class="details-section">
+        <h3>Contact / Message</h3>
+        <div class="action-row" id="contactRow">
+            <!-- Buttons rendered by JS -->
+        </div>
+    </div>
+
+    <div class="details-section">
+        <h3>Add Rating & Review</h3>
+
+        <div style="background:#f8fafc; padding:15px; border-radius:8px;">
+            <label>Rating:</label>
+            <select id="reviewRating" style="padding:6px;">
+                <option value="5">⭐⭐⭐⭐⭐ (5)</option>
+                <option value="4">⭐⭐⭐⭐ (4)</option>
+                <option value="3">⭐⭐⭐ (3)</option>
+                <option value="2">⭐⭐ (2)</option>
+                <option value="1">⭐ (1)</option>
+            </select>
+
+            <textarea id="reviewComment" placeholder="Write your experience..." style="margin-top:10px;"></textarea>
+
+            <button id="submitReviewBtn" class="btn-primary" style="margin-top:10px;">
+                Submit Review
+            </button>
+        </div>
+    </div>
+
+    <div class="details-section">
+        <h3>Reviews</h3>
+        <div id="reviewsList"></div>
+    </div>
+
+</div>
+
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+    import { getFirestore, doc, getDoc, updateDoc, collection, addDoc, query, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyAOKTqpJmN-43fDQrZVmfGCVlK_8JBTrvY",
+        authDomain: "hostelhunt-1df83.firebaseapp.com",
+        projectId: "hostelhunt-1df83",
+        storageBucket: "hostelhunt-1df83.firebasestorage.app",
+        messagingSenderId: "272376261500",
+        appId: "1:272376261500:web:719ada3e6b22090c5b12f9"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    function getId() {
+        return new URLSearchParams(window.location.search).get("id");
+    }
+
+    window.propertyOwnerId = null;
+    window.propertyTitle = null;
+
+    async function loadProperty() {
+        const id = getId();
+        if (!id) return;
+
+        const snap = await getDoc(doc(db, "properties", id));
+
+        if (!snap.exists()) {
+            document.getElementById("title").innerText = "Property not found";
+            return;
+        }
+
+        const p = snap.data();
+        window.propertyOwnerId = p.ownerId;
+        window.propertyTitle = p.title || "";
+
+        document.getElementById("title").innerHTML = p.title;
+        document.getElementById("city").innerText = p.city || "";
+        document.getElementById("type").innerText = p.type;
+        document.getElementById("forGender").innerText = p.forGender;
+        document.getElementById("rent").innerText = p.rent;
+        document.getElementById("beds").innerText = p.availableBeds;
+        document.getElementById("description").innerText = p.description || "";
+        document.getElementById("address").innerText = p.address;
+        document.getElementById("nearby").innerText = p.nearbyCollege || "";
+
+        if (p.imageURL) document.getElementById("propertyImage").src = p.imageURL;
+
+        renderContactArea(p);
+        loadReviews(id);
+    }
+
+    // render contact / message buttons
+    function renderContactArea(p) {
+        const row = document.getElementById("contactRow");
+        row.innerHTML = "";
+
+        const view = document.createElement("a");
+        view.href = `mailto:${encodeURIComponent(p.ownerEmail || '')}`;
+        view.className = "btn-secondary";
+        view.textContent = "Contact Owner (Email)";
+
+        const messageBtn = document.createElement("a");
+        messageBtn.href = `chat.html?ownerId=${encodeURIComponent(p.ownerId)}&propertyId=${encodeURIComponent(getId())}`;
+        messageBtn.className = "btn-primary";
+        messageBtn.textContent = "Message Owner";
+
+        row.appendChild(messageBtn);
+        row.appendChild(view);
+    }
+
+    /* REVIEWS */
+    async function loadReviews(propertyId) {
+        const reviewsRef = collection(db, "properties", propertyId, "reviews");
+        const q = query(reviewsRef, orderBy("time", "desc"));
+        const snap = await getDocs(q);
+
+        const div = document.getElementById("reviewsList");
+        div.innerHTML = "";
+
+        if (snap.empty) {
+            div.innerHTML = "<p>No reviews yet. Be the first ⭐</p>";
+            return;
+        }
+
+        let total = 0, count = 0;
+
+        const user = auth.currentUser;
+
+        snap.forEach(rDoc => {
+            const r = rDoc.data();
+            const reviewId = rDoc.id;
+
+            total += r.rating;
+            count++;
+
+            const isOwner = user && (user.uid === window.propertyOwnerId);
+
+            div.innerHTML += `
+                <div class="review-card">
+                    <strong>${r.userName}</strong> – <span>${"⭐".repeat(r.rating)}</span>
+                    <p>${r.comment}</p>
+                    <small>${new Date(r.time).toLocaleString()}</small>
+
+                    ${r.reply ? `
+                        <div class="owner-reply-box">
+                            <strong>Owner Reply:</strong>
+                            <p>${r.reply}</p>
+                            <small>${new Date(r.replyTime).toLocaleString()}</small>
+                        </div>
+                    ` : ''}
+
+                    ${isOwner && !r.reply ? `
+                        <textarea id="replyInput-${reviewId}" placeholder="Write reply..."></textarea>
+                        <button onclick="submitReply('${propertyId}', '${reviewId}')" class="btn-primary" style="margin-top:6px;">Reply</button>
+                    ` : ''}
+                </div>
+            `;
+        });
+
+        if (count > 0) {
+          const avg = (total / count).toFixed(1);
+          document.getElementById("title").innerHTML += ` <span style="color:#fbbf24;">⭐ ${avg}</span>`;
+        }
+    }
+
+    window.submitReply = async function(propertyId, reviewId) {
+        const user = auth.currentUser;
+        if (!user) return alert("You must be logged in.");
+
+        if (user.uid !== window.propertyOwnerId) {
+            alert("Only property owners can reply.");
+            return;
+        }
+
+        const replyText = document.getElementById(`replyInput-${reviewId}`).value.trim();
+        if (!replyText) return alert("Reply cannot be empty.");
+
+        const reviewRef = doc(db, "properties", propertyId, "reviews", reviewId);
+
+        await updateDoc(reviewRef, {
+            reply: replyText,
+            replyTime: Date.now()
+        });
+
+        alert("Reply added!");
+        loadReviews(propertyId);
+    };
+
+    async function submitReview() {
+        const rating = Number(document.getElementById("reviewRating").value);
+        const comment = document.getElementById("reviewComment").value.trim();
+
+        const user = auth.currentUser;
+
+        if (!user) {
+            alert("You must be logged in to submit a review.");
+            return;
+        }
+
+        if (!comment) {
+            alert("Please write a review.");
+            return;
+        }
+
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        const userName = userDoc.exists() ? userDoc.data().name : "User";
+
+        const propertyId = getId();
+
+        await addDoc(
+            collection(db, "properties", propertyId, "reviews"),
+            {
+                userId: user.uid,
+                userName: userName,
+                rating: rating,
+                comment: comment,
+                time: Date.now(),
+                reply: null,
+                replyTime: null
+            }
+        );
+
+        alert("Review submitted ⭐");
+        document.getElementById("reviewComment").value = "";
+        loadReviews(propertyId);
+    }
+
+    document.getElementById("submitReviewBtn").onclick = submitReview;
+
+    loadProperty();
+
+</script>
+
+</body>
+</html>

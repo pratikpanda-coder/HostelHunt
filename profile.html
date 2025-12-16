@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Your Profile – Hostel Hunt</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body { background:#f3f4f6; margin:0; font-family:Arial, sans-serif; }
+    header { background:#1e3a8a; color:white; padding:14px 20px; display:flex; justify-content:space-between; align-items:center; }
+    header .logo { font-size:22px; font-weight:bold; }
+    header a { color:white; text-decoration:none; margin-left:14px; }
+    .profile-box { width:430px; margin:40px auto; background:white; padding:25px; border-radius:12px; text-align:center; box-shadow:0 4px 12px rgba(0,0,0,0.08); }
+    .profile-pic { width:150px; height:150px; border-radius:50%; object-fit:cover; border:3px solid #ddd; background:#eee; margin-bottom:16px; }
+    .profile-name { font-size:22px; font-weight:600; margin:8px 0; }
+    .details p { margin:6px 0; font-size:15px; color:#374151; }
+    .edit-btn { background:#2563eb;color:#fff;padding:8px 12px;border-radius:8px;text-decoration:none;display:inline-block;margin-top:12px; }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <div class="logo">Hostel Hunt</div>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="profile.html">Edit Profile</a>
+    <a href="#" id="logoutBtn">Logout</a>
+  </nav>
+</header>
+
+<div class="profile-box">
+  <img src="https://via.placeholder.com/150" id="photo" class="profile-pic" />
+
+  <h2 class="profile-name" id="name">Loading...</h2>
+
+  <div class="details" id="details"></div>
+
+  <a href="profile.html" class="edit-btn" id="editProfileBtn" style="display:none;">Edit Profile</a>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+  import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAOKTqpJmN-43fDQrZVmfGCVlK_8JBTrvY",
+    authDomain: "hostelhunt-1df83.firebaseapp.com",
+    projectId: "hostelhunt-1df83",
+    storageBucket: "hostelhunt-1df83.firebasestorage.app",
+    messagingSenderId: "272376261500",
+    appId: "1:272376261500:web:719ada3e6b22090c5b12f9"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) return location.href = "login.html";
+
+    try {
+      const snap = await getDoc(doc(db, "users", user.uid));
+
+      if (!snap.exists()) {
+        document.getElementById("name").textContent = user.email;
+        document.getElementById("photo").src = user.photoURL || "https://via.placeholder.com/150";
+        return;
+      }
+
+      const data = snap.data();
+
+      document.getElementById("photo").src = data.photoURL ? data.photoURL : "https://via.placeholder.com/150";
+      document.getElementById("name").textContent = data.name || "No Name";
+
+      document.getElementById("details").innerHTML = `
+        <p><strong>Email:</strong> ${data.email}</p>
+        <p><strong>Phone:</strong> ${data.phone || "-"}</p>
+        <p><strong>College:</strong> ${data.collegeName || "-"}</p>
+        <p><strong>Gender:</strong> ${data.gender || "-"}</p>
+      `;
+
+      // show edit button for logged in user (links to same edit form)
+      document.getElementById("editProfileBtn").style.display = "inline-block";
+      document.getElementById("editProfileBtn").href = "user-profile.html"; // if you have an edit page, else profile.html
+    } catch (error) {
+      console.error("Error loading profile:", error);
+    }
+  });
+
+  document.getElementById("logoutBtn").onclick = async () => {
+    await signOut(auth);
+    location.href = "login.html";
+  };
+</script>
+
+</body>
+</html>

@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Login – Hostel Hunt</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Header (same unified header) -->
+<header>
+  <div class="logo">Hostel Hunt</div>
+
+  <nav id="mainNav" style="display:flex;align-items:center;gap:12px;">
+    <a href="index.html">Home</a>
+    <a href="login.html" id="loginNav">Login</a>
+    <a href="register.html" id="signupNav" class="btn">Sign up</a>
+
+    <a href="#" id="meProfileLink" style="display:none;">
+      <img id="navAvatar" src="https://via.placeholder.com/36"
+           alt="Profile" style="width:36px;height:36px;border-radius:50%;vertical-align:middle;margin-right:8px;object-fit:cover;border:2px solid #fff;">
+      <span id="navName" style="vertical-align:middle;font-weight:600;"></span>
+    </a>
+
+    <a href="#" id="logoutNav" style="display:none;color:#fff;background:#ef4444;padding:6px 10px;border-radius:6px;text-decoration:none;">Logout</a>
+  </nav>
+</header>
+
+<div class="form-page">
+    <h2>Login</h2>
+    <p class="small">Student, bachelor ya owner – apna account use karke login karein.</p>
+
+    <form id="loginForm">
+        <div class="form-group">
+            <label>Email</label>
+            <input type="email" name="email" placeholder="you@example.com" required>
+        </div>
+
+        <div class="form-group">
+            <label>Password</label>
+            <input type="password" name="password" placeholder="Enter password" required>
+        </div>
+
+        <div class="form-group">
+            <label>Login as</label>
+            <select name="role">
+                <option value="student">Student / Bachelor</option>
+                <option value="owner">Owner</option>
+            </select>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn-primary">Login</button>
+            <a href="register.html" class="text-link">New user? Register</a>
+        </div>
+
+        <p id="loginMessage" class="small" style="margin-top:10px;color:#2563eb;"></p>
+    </form>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyAOKTqpJmN-43fDQrZVmfGCVlK_8JBTrvY",
+        authDomain: "hostelhunt-1df83.firebaseapp.com",
+        projectId: "hostelhunt-1df83",
+        storageBucket: "hostelhunt-1df83.firebasestorage.app",
+        messagingSenderId: "272376261500",
+        appId: "1:272376261500:web:719ada3e6b22090c5b12f9"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // header elements
+    const loginNav = document.getElementById("loginNav");
+    const signupNav = document.getElementById("signupNav");
+    const logoutNav = document.getElementById("logoutNav");
+    const meProfileLink = document.getElementById("meProfileLink");
+    const navAvatar = document.getElementById("navAvatar");
+    const navName = document.getElementById("navName");
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        loginNav.style.display = "";
+        signupNav.style.display = "";
+        logoutNav.style.display = "none";
+        meProfileLink.style.display = "none";
+      } else {
+        loginNav.style.display = "none";
+        signupNav.style.display = "none";
+        logoutNav.style.display = "";
+        meProfileLink.style.display = "";
+
+        try {
+          const snap = await getDoc(doc(db, "users", user.uid));
+          const data = snap.exists() ? snap.data() : {};
+          navName.textContent = data.name || user.displayName || user.email.split("@")[0] || "User";
+          navAvatar.src = data.photoURL || user.photoURL || "https://via.placeholder.com/150";
+          meProfileLink.href = "profile.html";
+        } catch (e) {
+          navName.textContent = user.email.split("@")[0] || "User";
+          navAvatar.src = user.photoURL || "https://via.placeholder.com/150";
+          meProfileLink.href = "profile.html";
+        }
+      }
+    });
+
+    logoutNav.addEventListener("click", async (e) => {
+      e.preventDefault();
+      await signOut(auth);
+      window.location.href = "login.html";
+    });
+
+    const form = document.getElementById("loginForm");
+    const msg = document.getElementById("loginMessage");
+
+    form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        msg.textContent = "Checking...";
+        msg.style.color = "#2563eb";
+
+        const email = form.email.value;
+        const password = form.password.value;
+
+        try {
+            const userCred = await signInWithEmailAndPassword(auth, email, password);
+            const uid = userCred.user.uid;
+
+            const snap = await getDoc(doc(db, "users", uid));
+            let role = "student";
+            if (snap.exists()) role = snap.data().role;
+
+            msg.style.color = "green";
+            msg.textContent = "Login successful! Redirecting...";
+
+            // immediate redirect based on role
+            if (role === "owner") {
+                window.location.href = "owner_dashboard.html";
+            } else {
+                window.location.href = "index.html";
+            }
+
+        } catch (err) {
+            msg.style.color = "red";
+            msg.textContent = err.message;
+        }
+    });
+</script>
+
+</body>
+</html>

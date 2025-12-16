@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Edit Profile – Hostel Hunt</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* Small page-specific styles */
+    .container { max-width: 920px; margin: 32px auto; padding: 0 16px; }
+    .card { background:#fff;padding:22px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,0.06); }
+    .profile-grid { display:flex; gap:24px; align-items:flex-start; flex-wrap:wrap; }
+    .left { width:240px; text-align:center; }
+    .avatar { width:140px; height:140px; border-radius:50%; object-fit:cover; border:3px solid #eee; background:#f3f4f6; display:block; margin:0 auto 12px; }
+    .upload-btn { display:inline-block; background:#2563eb; color:#fff; padding:8px 12px; border-radius:8px; cursor:pointer; text-decoration:none; }
+    .form { flex:1; min-width:260px; }
+    .form-group { margin-bottom:12px; }
+    label { display:block; font-weight:600; margin-bottom:6px; }
+    input[type="text"], input[type="email"], select, textarea { width:100%; padding:8px 10px; border-radius:8px; border:1px solid #d1d5db; font-size:14px; }
+    textarea { min-height:90px; resize:vertical; }
+    .save-btn { background:#16a34a; color:#fff; padding:10px 14px; border-radius:8px; border:none; cursor:pointer; }
+    .small { font-size:13px; color:#555; }
+    .progress-container { width:100%; height:8px; background:#e5e7eb; border-radius:8px; overflow:hidden; display:none; margin-top:8px; }
+    .progress-bar { height:100%; width:0%; background:#2563eb; }
+  </style>
+</head>
+<body>
+
+<!-- Unified Header -->
+<header>
+  <div class="logo">Hostel Hunt</div>
+
+  <nav id="mainNav" style="display:flex;align-items:center;gap:12px;">
+    <a href="index.html">Home</a>
+    <a href="login.html" id="loginNav">Login</a>
+    <a href="register.html" id="signupNav" class="btn">Sign up</a>
+
+    <a href="#" id="meProfileLink" style="display:none;">
+      <img id="navAvatar" src="https://via.placeholder.com/36"
+           alt="Profile" style="width:36px;height:36px;border-radius:50%;vertical-align:middle;margin-right:8px;object-fit:cover;border:2px solid #fff;">
+      <span id="navName" style="vertical-align:middle;font-weight:600;"></span>
+    </a>
+
+    <a href="#" id="logoutNav" style="display:none;color:#fff;background:#ef4444;padding:6px 10px;border-radius:6px;text-decoration:none;">Logout</a>
+  </nav>
+</header>
+
+<div class="container">
+  <div class="card">
+    <h2>Edit Your Profile</h2>
+
+    <div class="profile-grid" style="margin-top:18px;">
+      <div class="left">
+        <img id="previewPhoto" class="avatar" src="https://via.placeholder.com/150" alt="Profile photo" />
+        <label class="upload-btn">
+          Upload Photo
+          <input type="file" id="photoInput" accept="image/*" hidden />
+        </label>
+
+        <div class="progress-container" id="progressContainer">
+          <div class="progress-bar" id="progressBar"></div>
+        </div>
+
+        <p class="small" style="margin-top:10px;">Tip: Square images display best.</p>
+      </div>
+
+      <form id="profileForm" class="form">
+        <div class="form-group">
+          <label>Full Name</label>
+          <input type="text" id="name" required />
+        </div>
+
+        <div class="form-group">
+          <label>Email (cannot change)</label>
+          <input type="email" id="email" disabled />
+        </div>
+
+        <div class="form-group">
+          <label>Phone</label>
+          <input type="text" id="phone" />
+        </div>
+
+        <div class="form-group">
+          <label>College / University</label>
+          <input type="text" id="college" />
+        </div>
+
+        <div class="form-group">
+          <label>Gender</label>
+          <select id="gender">
+            <option value="">Select</option>
+            <option value="male">male</option>
+            <option value="female">female</option>
+            <option value="other">other</option>
+          </select>
+        </div>
+
+        <div style="margin-top:12px;">
+          <button type="submit" class="save-btn">Save Profile</button>
+          <a href="profile.html" style="margin-left:12px; color:#2563eb;">View Profile</a>
+        </div>
+
+        <p id="profileMessage" style="margin-top:10px;"></p>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+  import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+  import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-storage.js";
+
+  // Firebase config (same as other pages)
+  const firebaseConfig = {
+    apiKey: "AIzaSyAOKTqpJmN-43fDQrZVmfGCVlK_8JBTrvY",
+    authDomain: "hostelhunt-1df83.firebaseapp.com",
+    projectId: "hostelhunt-1df83",
+    storageBucket: "hostelhunt-1df83.firebasestorage.app",
+    messagingSenderId: "272376261500",
+    appId: "1:272376261500:web:719ada3e6b22090c5b12f9"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+  const storage = getStorage(app);
+
+  // Header elements
+  const loginNav = document.getElementById("loginNav");
+  const signupNav = document.getElementById("signupNav");
+  const logoutNav = document.getElementById("logoutNav");
+  const meProfileLink = document.getElementById("meProfileLink");
+  const navAvatar = document.getElementById("navAvatar");
+  const navName = document.getElementById("navName");
+
+  // Page elements
+  const previewPhoto = document.getElementById("previewPhoto");
+  const photoInput = document.getElementById("photoInput");
+  const progressContainer = document.getElementById("progressContainer");
+  const progressBar = document.getElementById("progressBar");
+
+  const profileForm = document.getElementById("profileForm");
+  const nameInput = document.getElementById("name");
+  const emailInput = document.getElementById("email");
+  const phoneInput = document.getElementById("phone");
+  const collegeInput = document.getElementById("college");
+  const genderInput = document.getElementById("gender");
+  const profileMessage = document.getElementById("profileMessage");
+
+  let currentUser = null;
+  let uploadedPhotoURL = null;
+  let uploadedPhotoPath = null;
+
+  // Auth + header behaviour
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+      // not logged in -> go to login
+      window.location.href = "login.html";
+      return;
+    }
+
+    currentUser = user;
+
+    // header UI
+    loginNav.style.display = "none";
+    signupNav.style.display = "none";
+    logoutNav.style.display = "";
+    meProfileLink.style.display = "";
+
+    try {
+      const uSnap = await getDoc(doc(db, "users", user.uid));
+      const data = uSnap.exists() ? uSnap.data() : {};
+
+      navName.textContent = data.name || user.displayName || user.email.split("@")[0] || "User";
+      navAvatar.src = data.photoURL || user.photoURL || "https://via.placeholder.com/150";
+
+      // populate form fields
+      nameInput.value = data.name || "";
+      emailInput.value = data.email || user.email || "";
+      phoneInput.value = data.phone || "";
+      collegeInput.value = data.collegeName || "";
+      genderInput.value = data.gender || "";
+
+      previewPhoto.src = data.photoURL || user.photoURL || "https://via.placeholder.com/150";
+    } catch (err) {
+      console.error("Error loading user doc:", err);
+      // fallback minimal population
+      navName.textContent = user.email.split("@")[0] || "User";
+      navAvatar.src = user.photoURL || "https://via.placeholder.com/150";
+      emailInput.value = user.email || "";
+      previewPhoto.src = user.photoURL || "https://via.placeholder.com/150";
+    }
+  });
+
+  logoutNav.addEventListener("click", async (e) => {
+    e.preventDefault();
+    await signOut(auth);
+    window.location.href = "login.html";
+  });
+
+  // Photo input preview + upload
+  photoInput.addEventListener("change", (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    previewPhoto.src = URL.createObjectURL(f);
+    // start upload immediately (or wait until Save - here we upload immediately so you can show progress)
+    uploadProfilePhoto(f);
+  });
+
+  async function uploadProfilePhoto(file) {
+    profileMessage.textContent = "Uploading photo...";
+    progressContainer.style.display = "block";
+    progressBar.style.width = "0%";
+
+    const path = `profiles/${currentUser.uid}_${Date.now()}_${file.name}`;
+    const ref = storageRef(storage, path);
+    const task = uploadBytesResumable(ref, file);
+
+    return new Promise((resolve, reject) => {
+      task.on("state_changed",
+        (snap) => {
+          const pct = Math.round((snap.bytesTransferred / snap.totalBytes) * 100);
+          progressBar.style.width = `${pct}%`;
+        },
+        (err) => {
+          console.error("Upload error", err);
+          profileMessage.style.color = "red";
+          profileMessage.textContent = "Photo upload failed.";
+          progressContainer.style.display = "none";
+          reject(err);
+        },
+        async () => {
+          const url = await getDownloadURL(task.snapshot.ref);
+          uploadedPhotoURL = url;
+          uploadedPhotoPath = path;
+          profileMessage.style.color = "green";
+          profileMessage.textContent = "Photo uploaded (will be saved when you press Save).";
+          resolve({ url, path });
+        }
+      );
+    });
+  }
+
+  // Save profile
+  profileForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    profileMessage.style.color = "#2563eb";
+    profileMessage.textContent = "Saving...";
+
+    // prepare data
+    const updates = {
+      name: nameInput.value.trim(),
+      phone: phoneInput.value.trim(),
+      collegeName: collegeInput.value.trim(),
+      gender: genderInput.value,
+      updatedAt: serverTimestamp()
+    };
+
+    // if we uploaded a photo earlier, include its URL
+    if (uploadedPhotoURL) {
+      updates.photoURL = uploadedPhotoURL;
+      updates.photoPath = uploadedPhotoPath || null;
+    }
+
+    try {
+      await setDoc(doc(db, "users", currentUser.uid), updates, { merge: true });
+
+      // update header + preview
+      navName.textContent = updates.name || currentUser.email.split("@")[0] || "User";
+      if (updates.photoURL) {
+        navAvatar.src = updates.photoURL;
+        previewPhoto.src = updates.photoURL;
+      }
+
+      profileMessage.style.color = "green";
+      profileMessage.textContent = "Profile updated!";
+    } catch (err) {
+      console.error("Error saving profile:", err);
+      profileMessage.style.color = "red";
+      profileMessage.textContent = "Error saving profile: " + err.message;
+    }
+  });
+
+</script>
+
+</body>
+</html>

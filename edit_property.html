@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Edit Property – Hostel Hunt</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    body { background:#f3f4f6; margin:0; font-family:Arial, sans-serif; }
+    .container { max-width:900px; margin:30px auto; padding:16px; }
+    .card { background:#fff; padding:20px; border-radius:12px; box-shadow:0 6px 18px rgba(0,0,0,0.06); }
+    .form-group { margin-bottom:14px; }
+    label { display:block; font-weight:600; margin-bottom:6px; }
+    input, select, textarea { width:100%; padding:10px; border-radius:8px; border:1px solid #d1d5db; font-size:14px; }
+    textarea { min-height:80px; resize:vertical; }
+    .image-preview { width:100%; max-height:260px; object-fit:cover; border-radius:8px; margin-bottom:8px; display:none; background:#eee; }
+    .btn-upload { background:#2563eb; color:white; padding:8px 12px; border-radius:8px; cursor:pointer; display:inline-block; }
+    .progress-container { width:100%; height:8px; background:#e5e7eb; border-radius:8px; overflow:hidden; display:none; margin-top:8px; }
+    .progress-bar { height:100%; width:0%; background:#2563eb; }
+    .save-btn { background:#16a34a; color:#fff; padding:10px 14px; border-radius:8px; border:none; cursor:pointer; font-weight:600; }
+    .danger { background:#ef4444; color:#fff; padding:10px 14px; border-radius:8px; border:none; cursor:pointer; }
+    .small { font-size:13px; color:#555; }
+  </style>
+</head>
+<body>
+
+<!-- Header (unified) -->
+<header>
+  <div class="logo">Hostel Hunt</div>
+
+  <nav id="mainNav" style="display:flex;align-items:center;gap:12px;">
+    <a href="index.html">Home</a>
+    <a href="owner_dashboard.html">Owner Dashboard</a>
+    <a href="login.html" id="loginNav">Login</a>
+    <a href="register.html" id="signupNav" class="btn">Sign up</a>
+
+    <a href="#" id="meProfileLink" style="display:none;">
+      <img id="navAvatar" src="https://via.placeholder.com/36"
+           alt="Profile" style="width:36px;height:36px;border-radius:50%;vertical-align:middle;margin-right:8px;object-fit:cover;border:2px solid #fff;">
+      <span id="navName" style="vertical-align:middle;font-weight:600;"></span>
+    </a>
+
+    <a href="#" id="logoutNav" style="display:none;color:#fff;background:#ef4444;padding:6px 10px;border-radius:6px;text-decoration:none;">Logout</a>
+  </nav>
+</header>
+
+<div class="container">
+  <div class="card">
+    <h2>Edit Property</h2>
+    <p class="small">Update details and replace property image if needed.</p>
+
+    <form id="editForm">
+      <div class="form-group">
+        <label>Property Title</label>
+        <input type="text" id="title" required />
+      </div>
+
+      <div class="form-group">
+        <label>Property Type</label>
+        <select id="type">
+          <option value="hostel">Hostel</option>
+          <option value="pg">PG</option>
+          <option value="room">Room</option>
+          <option value="flat">Flat</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>For Gender</label>
+        <select id="gender">
+          <option value="male">Male</option>
+          <option value="female">Female</option>
+          <option value="both">Both</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>City</label>
+        <input type="text" id="city" required />
+      </div>
+
+      <div class="form-group">
+        <label>Nearby College (optional)</label>
+        <input type="text" id="nearbyCollege" />
+      </div>
+
+      <div class="form-group">
+        <label>Full Address</label>
+        <textarea id="address" required></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>Monthly Rent (₹)</label>
+        <input type="number" id="rent" required />
+      </div>
+
+      <div class="form-group">
+        <label>Available Beds</label>
+        <input type="number" id="availableBeds" />
+      </div>
+
+      <div class="form-group">
+        <label>Facilities (comma separated)</label>
+        <input type="text" id="facilities" placeholder="WiFi, Laundry, CCTV" />
+      </div>
+
+      <div class="form-group">
+        <label>Current Image</label>
+        <img id="imagePreview" class="image-preview" src="" alt="Property image" />
+        <div>
+          <label class="btn-upload">
+            Replace Image
+            <input type="file" id="propertyImage" accept="image/*" hidden />
+          </label>
+          <button id="removeImageBtn" type="button" class="danger" style="margin-left:12px; display:none;">Remove Image</button>
+        </div>
+
+        <div class="progress-container" id="progressContainer">
+          <div class="progress-bar" id="progressBar"></div>
+        </div>
+        <p id="imgNote" class="small" style="margin-top:8px;">Replace will upload a new image and update the property record.</p>
+      </div>
+
+      <div style="margin-top:10px;">
+        <button type="submit" class="save-btn">Save Changes</button>
+        <a href="owner_dashboard.html" style="margin-left:12px;" class="small">Cancel</a>
+      </div>
+
+      <p id="message" style="margin-top:12px;"></p>
+    </form>
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+  import {
+    getFirestore,
+    doc,
+    getDoc,
+    updateDoc,
+    serverTimestamp
+  } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+  import {
+    getStorage,
+    ref as storageRef,
+    uploadBytesResumable,
+    getDownloadURL,
+    deleteObject
+  } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-storage.js";
+
+  // Firebase config (same as other pages)
+  const firebaseConfig = {
+    apiKey: "AIzaSyAOKTqpJmN-43fDQrZVmfGCVlK_8JBTrvY",
+    authDomain: "hostelhunt-1df83.firebaseapp.com",
+    projectId: "hostelhunt-1df83",
+    storageBucket: "hostelhunt-1df83.firebasestorage.app",
+    messagingSenderId: "272376261500",
+    appId: "1:272376261500:web:719ada3e6b22090c5b12f9"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+  const storage = getStorage(app);
+
+  // Header elements
+  const loginNav = document.getElementById("loginNav");
+  const signupNav = document.getElementById("signupNav");
+  const logoutNav = document.getElementById("logoutNav");
+  const meProfileLink = document.getElementById("meProfileLink");
+  const navAvatar = document.getElementById("navAvatar");
+  const navName = document.getElementById("navName");
+
+  // Form elements
+  const titleEl = document.getElementById("title");
+  const typeEl = document.getElementById("type");
+  const genderEl = document.getElementById("gender");
+  const cityEl = document.getElementById("city");
+  const nearbyEl = document.getElementById("nearbyCollege");
+  const addressEl = document.getElementById("address");
+  const rentEl = document.getElementById("rent");
+  const bedsEl = document.getElementById("availableBeds");
+  const facilitiesEl = document.getElementById("facilities");
+
+  const imagePreview = document.getElementById("imagePreview");
+  const imageInput = document.getElementById("propertyImage");
+  const progressContainer = document.getElementById("progressContainer");
+  const progressBar = document.getElementById("progressBar");
+  const removeImageBtn = document.getElementById("removeImageBtn");
+
+  const form = document.getElementById("editForm");
+  const message = document.getElementById("message");
+
+  let currentUser = null;
+  let propertyId = null;
+  let propertyData = null;
+  let newImageFile = null;
+
+  // Helpers
+  function getIdFromQuery() {
+    return new URLSearchParams(window.location.search).get("id");
+  }
+
+  // Header auth state
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+      // not logged in -> go to login
+      window.location.href = "login.html";
+      return;
+    }
+    currentUser = user;
+
+    // show header UI
+    loginNav.style.display = "none";
+    signupNav.style.display = "none";
+    logoutNav.style.display = "";
+    meProfileLink.style.display = "";
+
+    // prefer Firestore user name/photo if available
+    try {
+      const uSnap = await getDoc(doc(db, "users", user.uid));
+      const u = uSnap.exists() ? uSnap.data() : {};
+      navName.textContent = u.name || user.email.split("@")[0] || "User";
+      navAvatar.src = u.photoURL || user.photoURL || "https://via.placeholder.com/150";
+    } catch (err) {
+      navName.textContent = user.email.split("@")[0] || "User";
+      navAvatar.src = user.photoURL || "https://via.placeholder.com/150";
+    }
+  });
+
+  logoutNav.addEventListener("click", async (e) => {
+    e.preventDefault();
+    await signOut(auth);
+    window.location.href = "login.html";
+  });
+
+  // Load property
+  async function loadProperty() {
+    propertyId = getIdFromQuery();
+    if (!propertyId) {
+      alert("No property id provided.");
+      window.location.href = "owner_dashboard.html";
+      return;
+    }
+
+    try {
+      const ref = doc(db, "properties", propertyId);
+      const snap = await getDoc(ref);
+
+      if (!snap.exists()) {
+        alert("Property not found.");
+        window.location.href = "owner_dashboard.html";
+        return;
+      }
+
+      propertyData = snap.data();
+
+      // Ensure current user is owner
+      if (!auth.currentUser || propertyData.ownerId !== auth.currentUser.uid) {
+        alert("You are not authorized to edit this property.");
+        window.location.href = "index.html";
+        return;
+      }
+
+      // populate fields
+      titleEl.value = propertyData.title || "";
+      typeEl.value = propertyData.type || "hostel";
+      genderEl.value = propertyData.forGender || "both";
+      cityEl.value = propertyData.city || "";
+      nearbyEl.value = propertyData.nearbyCollege || "";
+      addressEl.value = propertyData.address || "";
+      rentEl.value = propertyData.rent || "";
+      bedsEl.value = propertyData.availableBeds || "";
+      facilitiesEl.value = propertyData.facilities || "";
+
+      if (propertyData.imageURL) {
+        imagePreview.src = propertyData.imageURL;
+        imagePreview.style.display = "block";
+        removeImageBtn.style.display = "inline-block";
+      } else {
+        imagePreview.style.display = "none";
+        removeImageBtn.style.display = "none";
+      }
+
+    } catch (err) {
+      console.error("Error loading property:", err);
+      alert("Error loading property. See console for details.");
+      window.location.href = "owner_dashboard.html";
+    }
+  }
+
+  // Image input change
+  imageInput.addEventListener("change", (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    newImageFile = f;
+    imagePreview.src = URL.createObjectURL(f);
+    imagePreview.style.display = "block";
+    progressContainer.style.display = "none";
+    removeImageBtn.style.display = "inline-block";
+  });
+
+  // Remove image button (will clear image fields and mark to delete existing imagePath on save)
+  let removeExistingImage = false;
+  removeImageBtn.addEventListener("click", () => {
+    // user chose to remove image entirely
+    newImageFile = null;
+    removeExistingImage = true;
+    imagePreview.src = "";
+    imagePreview.style.display = "none";
+    imageInput.value = "";
+    removeImageBtn.style.display = "none";
+  });
+
+  // Upload function
+  function uploadImage(file) {
+    return new Promise((resolve, reject) => {
+      const path = `properties/${auth.currentUser.uid}_${Date.now()}_${file.name}`;
+      const ref = storageRef(storage, path);
+      const task = uploadBytesResumable(ref, file);
+
+      progressContainer.style.display = "block";
+      progressBar.style.width = "0%";
+
+      task.on("state_changed",
+        (snap) => {
+          const pct = Math.round((snap.bytesTransferred / snap.totalBytes) * 100);
+          progressBar.style.width = `${pct}%`;
+        },
+        (err) => {
+          progressContainer.style.display = "none";
+          reject(err);
+        },
+        async () => {
+          const url = await getDownloadURL(task.snapshot.ref);
+          resolve({ url, path });
+        }
+      );
+    });
+  }
+
+  // Delete storage object helper (safe)
+  async function safeDeleteImage(path) {
+    if (!path) return;
+    try {
+      const ref = storageRef(storage, path);
+      await deleteObject(ref).catch(() => {});
+    } catch (err) {
+      console.warn("Failed to delete old image:", err);
+    }
+  }
+
+  // Save form
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    message.style.color = "#2563eb";
+    message.textContent = "Saving changes...";
+
+    try {
+      const updates = {
+        title: titleEl.value.trim(),
+        type: typeEl.value,
+        forGender: genderEl.value,
+        city: cityEl.value.trim(),
+        nearbyCollege: nearbyEl.value.trim(),
+        address: addressEl.value.trim(),
+        rent: Number(rentEl.value) || 0,
+        availableBeds: bedsEl.value ? Number(bedsEl.value) : null,
+        facilities: facilitiesEl.value.trim(),
+        updatedAt: serverTimestamp()
+      };
+
+      // CASES:
+      // 1) New image uploaded -> upload it, delete old imagePath (if any), update imageURL & imagePath
+      // 2) removeExistingImage is true -> delete old imagePath from storage (if any) and clear imageURL/imagePath fields
+      // 3) neither -> keep existing imageURL/imagePath as-is
+
+      if (newImageFile) {
+        // upload new image
+        message.textContent = "Uploading new image...";
+        const uploaded = await uploadImage(newImageFile);
+        updates.imageURL = uploaded.url;
+        updates.imagePath = uploaded.path;
+
+        // delete old image if present and different
+        if (propertyData && propertyData.imagePath) {
+          await safeDeleteImage(propertyData.imagePath);
+        }
+      } else if (removeExistingImage) {
+        // delete current stored image (if exists)
+        if (propertyData && propertyData.imagePath) {
+          await safeDeleteImage(propertyData.imagePath);
+        }
+        updates.imageURL = "";
+        updates.imagePath = "";
+      }
+      // else: do nothing to image fields (keep existing)
+
+      // perform update
+      const propRef = doc(db, "properties", propertyId);
+      await updateDoc(propRef, updates);
+
+      message.style.color = "green";
+      message.textContent = "Property updated! Redirecting to dashboard...";
+
+      setTimeout(() => {
+        window.location.href = "owner_dashboard.html";
+      }, 900);
+
+    } catch (err) {
+      console.error("Error updating property:", err);
+      message.style.color = "red";
+      message.textContent = "Error: " + err.message;
+    }
+  });
+
+  // Initialize page
+  (async () => {
+    await loadProperty();
+  })();
+
+</script>
+
+</body>
+</html>

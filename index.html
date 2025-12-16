@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Hostel Hunt – Find Hostel & PG</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- START: Unified Header -->
+<header>
+  <div class="logo">Hostel Hunt</div>
+
+  <nav id="mainNav" style="display:flex;align-items:center;gap:12px;">
+    <a href="index.html">Home</a>
+    <a href="login.html" id="loginNav">Login</a>
+    <a href="register.html" id="signupNav" class="btn">Sign up</a>
+
+    <a href="#" id="meProfileLink" style="display:none;">
+      <img id="navAvatar" src="https://via.placeholder.com/36"
+           alt="Profile" style="width:36px;height:36px;border-radius:50%;vertical-align:middle;margin-right:8px;object-fit:cover;border:2px solid #fff;">
+      <span id="navName" style="vertical-align:middle;font-weight:600;"></span>
+    </a>
+
+    <a href="#" id="logoutNav" style="display:none;color:#fff;background:#ef4444;padding:6px 10px;border-radius:6px;text-decoration:none;">Logout</a>
+  </nav>
+</header>
+<!-- END: Unified Header -->
+
+<section class="hero">
+    <div class="hero-left">
+        <span class="badge">For Students & Bachelors</span>
+        <h1>Find the best Hostel, PG or Room near your college</h1>
+        <p>
+            Search location-wise hostels, PGs and rooms with filters for gender,
+            budget and facilities. Directly connect with verified owners.
+        </p>
+
+        <div class="search-box">
+            <form id="searchForm">
+                <div class="search-row">
+                    <div>
+                        <label>City / Area</label>
+                        <input type="text" name="location" id="locationInput" placeholder="e.g. Bhubaneswar, Khandagiri">
+                    </div>
+                    <div>
+                        <label>Near College</label>
+                        <input type="text" name="college" id="collegeInput" placeholder="College / University name">
+                    </div>
+                </div>
+
+                <div class="search-row">
+                    <div>
+                        <label>Type</label>
+                        <select name="type" id="typeInput">
+                            <option value="">Any</option>
+                            <option value="hostel">Hostel</option>
+                            <option value="pg">PG</option>
+                            <option value="room">Room</option>
+                            <option value="flat">Flat</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>For</label>
+                        <select name="for_gender" id="genderInput">
+                            <option value="">Male / Female / Both</option>
+                            <option value="male">Male</option>
+                            <option value="female">Female</option>
+                            <option value="both">Both</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Max Budget (per month)</label>
+                        <input type="number" name="max_rent" id="maxRentInput" placeholder="6000">
+                    </div>
+                </div>
+
+                <div style="margin-top:10px;">
+                    <label>Facilities (comma separated)</label>
+                    <input type="text" id="facilitiesInput" placeholder="e.g. Wi-Fi, Laundry, CCTV">
+                </div>
+
+                <div style="margin-top:12px;">
+                    <button type="submit" class="btn-primary">Search</button>
+                    <button type="button" id="clearBtn" class="btn" style="margin-left:8px;padding:8px 12px;background:#eee;border-radius:6px;">Clear</button>
+                </div>
+            </form>
+        </div>
+
+        <p style="font-size:13px;color:#555;">
+            Tip: Login to get personalised recommendations based on your college.
+        </p>
+    </div>
+
+    <div class="hero-right">
+        <img src="https://images.pexels.com/photos/439391/pexels-photo-439391.jpeg"
+             alt="Hostel room" style="width:100%;border-radius:14px;">
+    </div>
+</section>
+
+<section class="section">
+    <h2>Search Results</h2>
+    <div class="card-grid" id="featuredList">
+        <!-- JS will populate results here -->
+    </div>
+    <p id="resultsMessage" style="text-align:center;margin-top:12px;color:#555;"></p>
+</section>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+  import { getFirestore, collection, query, where, getDocs, orderBy, limit } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+  import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+  import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAOKTqpJmN-43fDQrZVmfGCVlK_8JBTrvY",
+    authDomain: "hostelhunt-1df83.firebaseapp.com",
+    projectId: "hostelhunt-1df83",
+    storageBucket: "hostelhunt-1df83.firebasestorage.app",
+    messagingSenderId: "272376261500",
+    appId: "1:272376261500:web:719ada3e6b22090c5b12f9",
+    measurementId: "G-0G66K64YFS"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const auth = getAuth(app);
+
+  // Header logic
+  const loginNav = document.getElementById("loginNav");
+  const signupNav = document.getElementById("signupNav");
+  const logoutNav = document.getElementById("logoutNav");
+  const meProfileLink = document.getElementById("meProfileLink");
+  const navAvatar = document.getElementById("navAvatar");
+  const navName = document.getElementById("navName");
+
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+      loginNav.style.display = "";
+      signupNav.style.display = "";
+      logoutNav.style.display = "none";
+      meProfileLink.style.display = "none";
+    } else {
+      loginNav.style.display = "none";
+      signupNav.style.display = "none";
+      logoutNav.style.display = "";
+      meProfileLink.style.display = "";
+
+      try {
+        const snap = await getDoc(doc(db, "users", user.uid));
+        const data = snap.exists() ? snap.data() : {};
+        navName.textContent = data.name || user.displayName || user.email.split("@")[0];
+        navAvatar.src = data.photoURL || user.photoURL || "https://via.placeholder.com/150";
+        meProfileLink.href = "profile.html";
+      } catch {
+        navName.textContent = user.email.split("@")[0];
+        navAvatar.src = "https://via.placeholder.com/150";
+      }
+    }
+  });
+
+  logoutNav.addEventListener("click", async (e) => {
+    e.preventDefault();
+    await signOut(auth);
+    window.location.href = "login.html";
+  });
+
+  // escape HTML
+  function escapeHtml(text) {
+    if (!text) return "";
+    return String(text).replace(/[&<>"'`=\/]/g, s => ({
+      "&":"&amp;", "<":"&lt;", ">":"&gt;", "\"":"&quot;",
+      "'":"&#39;", "/":"&#x2F;", "`":"&#x60;", "=":"&#x3D;"
+    }[s]));
+  }
+
+  // ⭐⭐⭐ HERE IS YOUR UPDATED CARD WITH MESSAGE OWNER BUTTON ⭐⭐⭐
+  function createCard(p) {
+    const safeFacilities = (p.facilities || "").split(",").map(s => s.trim()).filter(Boolean);
+
+    return `
+      <div class="property-card">
+        <img src="${p.imageURL || 'https://images.pexels.com/photos/271624/pexels-photo-271624.jpeg'}" alt="${p.title}">
+        <div class="property-content">
+
+          <div class="property-title">${escapeHtml(p.title || 'Untitled')}</div>
+          <div class="property-meta">${escapeHtml(p.city || '')} • ${escapeHtml(p.nearbyCollege || '')}</div>
+          <div class="price">₹${escapeHtml(p.rent || '0')}</div>
+
+          <div style="margin-top:8px;">
+            ${safeFacilities.slice(0,4).map(f => `<span class="tag">${escapeHtml(f)}</span>`).join(' ')}
+          </div>
+
+          <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+
+            <!-- OLD VIEW BUTTON -->
+            <a href="property.html?id=${encodeURIComponent(p._id || '')}" 
+               class="btn-primary" style="padding:6px 10px;font-size:13px;">View</a>
+
+            <!-- ⭐ NEW MESSAGE OWNER BUTTON ⭐ -->
+            <a href="chat.html?ownerId=${encodeURIComponent(p.ownerId || '')}&propertyId=${encodeURIComponent(p._id || '')}"
+               class="btn-secondary"
+               style="padding:6px 10px;font-size:13px;background:#e6f4ff;color:#2563eb;border-radius:6px;text-decoration:none;">
+               Message Owner
+            </a>
+
+            <!-- OLD CONTACT OWNER BUTTON -->
+            <a href="mailto:${encodeURIComponent(p.ownerEmail || '')}"
+               class="text-link" style="align-self:center;font-size:13px;">Contact Owner</a>
+
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  async function runSearch(filters) {
+    const featuredList = document.getElementById("featuredList");
+    const resultsMessage = document.getElementById("resultsMessage");
+
+    featuredList.innerHTML = "";
+    resultsMessage.innerText = "Searching...";
+
+    try {
+      const propsRef = collection(db, "properties");
+      let q = propsRef;
+
+      const clauses = [];
+
+      if (filters.city) clauses.push(where("city", "==", filters.city));
+      if (filters.type) clauses.push(where("type", "==", filters.type));
+      if (filters.forGender) clauses.push(where("forGender", "==", filters.forGender));
+      if (filters.maxRent) clauses.push(where("rent", "<=", Number(filters.maxRent)));
+
+      if (clauses.length > 0) {
+        q = query(propsRef, ...clauses, orderBy("rent"), limit(50));
+      } else {
+        q = query(propsRef, orderBy("rent"), limit(50));
+      }
+
+      const snapshot = await getDocs(q);
+      let results = [];
+
+      snapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        data._id = docSnap.id;
+        results.push(data);
+      });
+
+      if (filters.college) {
+        const needle = filters.college.toLowerCase();
+        results = results.filter(r => 
+          (r.nearbyCollege || "").toLowerCase().includes(needle) ||
+          (r.city || "").toLowerCase().includes(needle)
+        );
+      }
+
+      if (filters.facilities) {
+        const want = filters.facilities.split(",").map(s => s.trim().toLowerCase());
+        results = results.filter(r => {
+          const have = (r.facilities || "").toLowerCase();
+          return want.every(w => have.includes(w));
+        });
+      }
+
+      results = results.filter(r => !r.status || r.status.toLowerCase() === "active");
+
+      if (results.length === 0) {
+        resultsMessage.innerText = "No hostels found.";
+        return;
+      }
+
+      resultsMessage.innerText = "";
+      featuredList.innerHTML = results.map(r => createCard(r)).join("");
+    } 
+    catch (err) {
+      console.error(err);
+      resultsMessage.style.color = "red";
+      resultsMessage.innerText = "Error: " + err.message;
+    }
+  }
+
+  const form = document.getElementById("searchForm");
+  const clearBtn = document.getElementById("clearBtn");
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const filters = {
+      city: document.getElementById("locationInput").value.trim(),
+      college: document.getElementById("collegeInput").value.trim(),
+      type: document.getElementById("typeInput").value,
+      forGender: document.getElementById("genderInput").value,
+      maxRent: document.getElementById("maxRentInput").value,
+      facilities: document.getElementById("facilitiesInput").value
+    };
+
+    if (filters.city === "") filters.city = null;
+    if (filters.type === "") filters.type = null;
+    if (filters.forGender === "") filters.forGender = null;
+    if (filters.maxRent === "") filters.maxRent = null;
+
+    runSearch(filters);
+  });
+
+  clearBtn.addEventListener("click", () => {
+    form.reset();
+    document.getElementById("featuredList").innerHTML = "";
+    document.getElementById("resultsMessage").innerText = "";
+  });
+
+  // INITIAL LOAD
+  runSearch({});
+</script>
+
+</body>
+</html>

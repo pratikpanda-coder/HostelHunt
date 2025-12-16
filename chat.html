@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Chat – Hostel Hunt</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    body { background:#f3f4f6; margin:0; font-family:Arial, sans-serif; }
+    header { background:#1e3a8a; color:#fff; padding:12px 16px; display:flex; justify-content:space-between; align-items:center; }
+    .logo { font-weight:700; }
+    .chat-container { max-width:900px; margin:18px auto; background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 6px 18px rgba(0,0,0,0.06); display:flex; flex-direction:column; height:75vh; }
+    .chat-header { padding:12px 16px; display:flex; gap:12px; align-items:center; border-bottom:1px solid #eee; }
+    .chat-header img { width:44px; height:44px; border-radius:50%; object-fit:cover; }
+    .chat-body { flex:1; padding:12px; overflow:auto; background:linear-gradient(#fff,#fafafa); }
+    .message { max-width:72%; padding:10px 12px; border-radius:12px; margin-bottom:10px; display:inline-block; clear:both; word-wrap:break-word; }
+    .message.me { background:#2563eb; color:white; margin-left:auto; border-bottom-right-radius:4px; }
+    .message.them { background:#f1f5f9; color:#111; margin-right:auto; border-bottom-left-radius:4px; }
+    .meta { font-size:12px; color:#666; margin-bottom:6px; display:block; }
+    .chat-input { padding:10px; border-top:1px solid #eee; display:flex; gap:8px; align-items:center; }
+    .chat-input input, .chat-input textarea { flex:1; padding:10px 12px; border-radius:8px; border:1px solid #d1d5db; font-size:14px; }
+    .send-btn { background:#16a34a; color:white; padding:10px 14px; border-radius:8px; border:none; cursor:pointer; font-weight:600; }
+    .small { font-size:12px; color:#666; }
+    .empty { text-align:center; color:#888; padding:24px 8px; }
+    .status { font-size:12px; color:#666; margin-left:8px; }
+    @media(max-width:600px){ .chat-container{height:78vh;} }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Hostel Hunt</div>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <a href="index.html" style="color:#fff;text-decoration:none">Home</a>
+    <a href="#" id="logoutBtn" style="color:#fff;text-decoration:none">Logout</a>
+  </div>
+</header>
+
+<div class="chat-container" id="chatWrap" aria-live="polite">
+  <div class="chat-header" id="chatHeader">
+    <img id="otherAvatar" src="https://via.placeholder.com/150" alt="Owner"/>
+    <div>
+      <div id="otherName" style="font-weight:700;">Loading...</div>
+      <div class="small" id="propertyInfo">Property</div>
+    </div>
+    <div style="margin-left:auto;">
+      <span class="small status" id="typingStatus" style="display:none;">Typing...</span>
+    </div>
+  </div>
+
+  <div class="chat-body" id="messages"></div>
+
+  <div class="chat-input">
+    <input id="textInput" placeholder="Write a message..." autocomplete="off" />
+    <button id="sendBtn" class="send-btn">Send</button>
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+  import {
+    getFirestore,
+    collection,
+    doc,
+    getDoc,
+    setDoc,
+    query,
+    onSnapshot,
+    orderBy,
+    addDoc,
+    serverTimestamp,
+    updateDoc
+  } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAOKTqpJmN-43fDQrZVmfGCVlK_8JBTrvY",
+    authDomain: "hostelhunt-1df83.firebaseapp.com",
+    projectId: "hostelhunt-1df83",
+    storageBucket: "hostelhunt-1df83.firebasestorage.app",
+    messagingSenderId: "272376261500",
+    appId: "1:272376261500:web:719ada3e6b22090c5b12f9"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  // Query params: chat opened with owner (ownerId) for property (propertyId)
+  const params = new URLSearchParams(window.location.search);
+  const ownerId = params.get("ownerId");
+  const propertyId = params.get("propertyId");
+
+  const messagesDiv = document.getElementById("messages");
+  const sendBtn = document.getElementById("sendBtn");
+  const textInput = document.getElementById("textInput");
+  const otherName = document.getElementById("otherName");
+  const otherAvatar = document.getElementById("otherAvatar");
+  const propertyInfo = document.getElementById("propertyInfo");
+  const typingStatus = document.getElementById("typingStatus");
+  const logoutBtn = document.getElementById("logoutBtn");
+
+  let currentUser = null;
+  let chatDocRef = null;
+  let messagesUnsub = null;
+  let typingTimeout = null;
+
+  logoutBtn.addEventListener("click", async (e) => {
+    e.preventDefault();
+    await signOut(auth);
+    location.href = "login.html";
+  });
+
+  function scrollToBottom() { messagesDiv.scrollTop = messagesDiv.scrollHeight; }
+
+  function renderMessage(m) {
+    const el = document.createElement("div");
+    el.className = "message " + (m.senderId === currentUser.uid ? "me" : "them");
+
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    const timeVal = m.time?.toDate ? m.time.toDate() : (m.time ? new Date(m.time) : new Date());
+    meta.textContent = (m.senderName || (m.senderId === currentUser.uid ? "You" : "Owner")) + " • " + timeVal.toLocaleString();
+    el.appendChild(meta);
+
+    const text = document.createElement("div");
+    text.textContent = m.text;
+    el.appendChild(text);
+
+    messagesDiv.appendChild(el);
+  }
+
+  function makeChatId(a, b, pid) {
+    const ids = [a, b].sort().join("_");
+    return `${ids}_p_${pid}`;
+  }
+
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) return location.href = "login.html";
+    currentUser = user;
+
+    if (!ownerId || !propertyId) {
+      alert("Chat missing ownerId or propertyId.");
+      return location.href = "index.html";
+    }
+
+    // load owner details
+    try {
+      const ownerSnap = await getDoc(doc(db, "users", ownerId));
+      const owner = ownerSnap.exists() ? ownerSnap.data() : {};
+      otherName.textContent = owner.name || owner.email || "Owner";
+      otherAvatar.src = owner.photoURL || "https://via.placeholder.com/150";
+    } catch (err) {
+      console.warn("Owner load failed", err);
+      otherName.textContent = "Owner";
+    }
+
+    // load property title for header
+    try {
+      const pSnap = await getDoc(doc(db, "properties", propertyId));
+      if (pSnap.exists()) {
+        const p = pSnap.data();
+        propertyInfo.textContent = p.title ? `Property: ${p.title}` : "Property";
+      }
+    } catch (err) { /* ignore */ }
+
+    // create/get chat doc (deterministic id)
+    const chatId = makeChatId(currentUser.uid, ownerId, propertyId);
+    chatDocRef = doc(db, "chats", chatId);
+
+    const chatSnap = await getDoc(chatDocRef);
+    if (!chatSnap.exists()) {
+      await setDoc(chatDocRef, {
+        participants: [currentUser.uid, ownerId],
+        propertyId: propertyId,
+        createdAt: serverTimestamp(),
+        lastMessage: "",
+        lastUpdated: serverTimestamp()
+      });
+    }
+
+    // subscribe to messages
+    const msgsRef = collection(db, "chats", chatId, "messages");
+    const q = query(msgsRef, orderBy("time", "asc"));
+
+    messagesUnsub = onSnapshot(q, (snap) => {
+      messagesDiv.innerHTML = "";
+      if (snap.empty) {
+        const e = document.createElement("div");
+        e.className = "empty";
+        e.textContent = "No messages yet — say hi 👋";
+        messagesDiv.appendChild(e);
+        return;
+      }
+      snap.forEach(d => renderMessage(d.data()));
+      scrollToBottom();
+    });
+
+    // subscribe to chat doc for typing indicator
+    onSnapshot(chatDocRef, (d) => {
+      const data = d.data();
+      if (!data) return;
+      if (data.typing && data.typing[ownerId]) {
+        typingStatus.style.display = "inline";
+      } else {
+        typingStatus.style.display = "none";
+      }
+    });
+  });
+
+  // Typing state handling
+  let typingTimeoutHandle = null;
+  async function setTyping(flag) {
+    if (!chatDocRef || !currentUser) return;
+    try {
+      await updateDoc(chatDocRef, { ["typing." + currentUser.uid]: flag ? true : false });
+      if (typingTimeoutHandle) clearTimeout(typingTimeoutHandle);
+      if (flag) {
+        typingTimeoutHandle = setTimeout(() => setTyping(false), 2000);
+      }
+    } catch (err) { /* ignore */ }
+  }
+
+  sendBtn.addEventListener("click", sendMessage);
+  textInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+    else { setTyping(true); }
+  });
+
+  async function sendMessage() {
+    const text = textInput.value.trim();
+    if (!text) return;
+    if (!chatDocRef) return alert("Chat not ready.");
+
+    const msgsRef = collection(db, "chats", chatDocRef.id, "messages");
+    const msg = {
+      senderId: currentUser.uid,
+      senderName: currentUser.displayName || currentUser.email.split("@")[0] || "User",
+      text,
+      time: serverTimestamp()
+    };
+
+    try {
+      await addDoc(msgsRef, msg);
+      await updateDoc(chatDocRef, { lastMessage: text, lastUpdated: serverTimestamp() });
+      textInput.value = "";
+      setTyping(false);
+      textInput.focus();
+    } catch (err) {
+      console.error("Send failed", err);
+      alert("Message send failed: " + err.message);
+    }
+  }
+</script>
+
+</body>
+</html>
